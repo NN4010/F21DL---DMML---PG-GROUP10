@@ -56,7 +56,7 @@ rest are discriminative.
 ```
 .
 ├── README.md
-├── environment.yml          # conda environment
+├── environment.yml          # dependency list (local runs only; Colab has these)
 ├── .gitignore
 ├── data/
 │   ├── README.md            # download instructions (raw data is gitignored)
@@ -78,20 +78,22 @@ rest are discriminative.
 
 ## Setup
 
-```bash
-# 1. create the environment
-conda env create -f environment.yml
-conda activate f21dl
+**We run the notebooks on Google Colab** (free GPU for the CNN). The notebooks live in
+this GitHub repo; the datasets live in a shared Google Drive folder.
 
-# 2. register the kernel for Jupyter
-python -m ipykernel install --user --name f21dl
+1. Open a notebook in Colab: **File → Open notebook → GitHub tab**, paste this repo URL,
+   pick the notebook. Save back with **File → Save a copy to GitHub**.
+2. The data lives in a shared Drive folder `MyDrive/DMML-data/` (two CSVs, the CTG `.xls`,
+   and the `images/` folder). Ask the repo owner to share it with you.
+3. Every notebook's first cell mounts Drive:
+   ```python
+   from google.colab import drive
+   drive.mount('/content/drive')
+   DATA = '/content/drive/MyDrive/DMML-data'
+   ```
 
-# 3. download the datasets (see data/README.md), then launch
-jupyter lab
-```
-
-The ultrasound CNN (`07`) is best run on a GPU — use Google Colab or Kaggle and install the
-CUDA build of PyTorch there rather than from `environment.yml`.
+Colab already has pandas, scikit-learn and PyTorch installed, so `environment.yml` is only
+for anyone who prefers to run locally (`conda env create -f environment.yml`).
 
 ## How to run
 
