@@ -1,0 +1,22 @@
+name: f21dl
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.11
+  - numpy
+  - pandas
+  - scikit-learn
+  - matplotlib
+  - seaborn
+  - jupyter
+  - ipykernel
+  - pip
+  - pip:
+      # Deep learning for the MLP (R4) and the ultrasound CNN (R4).
+      # CPU build below works everywhere; for GPU, install the CUDA build
+      # from https://pytorch.org/get-started/locally/ instead.
+      - torch
+      - torchvision
+      # Optional: gradient boosting baseline (R3). sklearn's
+      # HistGradientBoosting works without this, so it's optional.
+      - xgboost
