@@ -83,13 +83,15 @@ this GitHub repo; the datasets live in a shared Google Drive folder.
 
 1. Open a notebook in Colab: **File → Open notebook → GitHub tab**, paste this repo URL,
    pick the notebook. Save back with **File → Save a copy to GitHub**.
-2. The data lives in a shared Drive folder `MyDrive/DMML-data/` (two CSVs, the CTG `.xls`,
-   and the `images/` folder). Ask the repo owner to share it with you.
+2. The data lives in a shared Drive folder `MyDrive/DM&MLcsvfile/` (two CSVs, the CTG
+   `.xls`) plus the ultrasound `images/` folder. Ask the repo owner to share it, then add
+   a shortcut to your own Drive. Staff without Drive access: see [`data/README.md`](data/README.md)
+   for public download links.
 3. Every notebook's first cell mounts Drive:
    ```python
    from google.colab import drive
    drive.mount('/content/drive')
-   DATA = '/content/drive/MyDrive/DMML-data'
+   DATA = '/content/drive/MyDrive/DM&MLcsvfile'
    ```
 
 Colab already has pandas, scikit-learn and PyTorch installed, so `environment.yml` is only
