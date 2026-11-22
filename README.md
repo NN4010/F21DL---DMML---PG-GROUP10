@@ -104,13 +104,13 @@ to `results/` for the report.
 
 ## Team
 
-| Member | Responsibility |
-| --- | --- |
-| _TBD_ | |
-| _TBD_ | |
-| _TBD_ | |
-| _TBD_ | |
-| _TBD_ | |
+| Member | ID | Responsibility
+| --- | --- | --- |
+| NOURIN NAWSHAD | H00504162 | |
+| MOHAMMAD FAIZAN YUNUS AGWAN | H00538019 | |
+| ATHARV BHARAT GHADGE | H00529734 | |
+| NASHITAH SHAHID | | |
+| ZAHID | | |
 
 ---
 
