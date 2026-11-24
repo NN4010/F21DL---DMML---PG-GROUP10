@@ -1,0 +1,668 @@
+Printed output of every code cell from the full Colab run (T4 GPU) of notebooks/DMML_Group10.ipynb
+
+====================================================================================================
+# 1.2 Configuration: paths, switches, random seed
+====================================================================================================
+Mounted at /content/drive
+seed 42 | data folder: /content/drive/MyDrive | CNN part: on | TensorFlow 2.21.0
+
+====================================================================================================
+# 2.1 Load D1 (maternal vitals), D2 (CTG) and D3 (ultrasound metadata) and count the missing values
+====================================================================================================
+D1: 1014 rows x 7 columns | missing cells: 0 (in 0 rows)
+D2: 2130 rows x 40 columns | missing cells: 146 (in 4 rows)
+D3: 12400 rows x 7 columns | missing cells: 0 (in 0 rows)
+
+====================================================================================================
+# 2.2 Clean D1: remove duplicates (they would appear in both train and test) and impossible heart rates
+====================================================================================================
+D1 duplicate rows: 562 of 1014
+D1 heart rate < 40 bpm removed: 1
+D1 after cleaning: (451, 8) {0: 233, 1: 106, 2: 112}
+D1 records that share their vital signs with a record of another risk level: 71 of 451
+
+====================================================================================================
+# 2.3 Clean D2: drop blank rows and keep the CTG measurements as features.
+====================================================================================================
+D2 blank rows dropped: 4
+D2 constant features removed: ['DR']
+D2 missing values after conversion: 0 | duplicate rows removed: 14
+D2 after cleaning: (2112, 23) {0: 1646, 1: 292, 2: 174}
+
+====================================================================================================
+# 2.4 D3 metadata: image file names and patient-level train/test check
+====================================================================================================
+Patients in both the official train and test sets: 0
+D3 images per plane:
+Plane
+Other              4213
+Fetal brain        3092
+Fetal thorax       1718
+Maternal cervix    1626
+Fetal femur        1040
+Fetal abdomen       711
+
+====================================================================================================
+# 3.1 Stratified 80/20 train/test split for D1 and D2, and the 5-fold cross-validation scheme used for every model
+====================================================================================================
+D1: train (360, 6), test (91, 6), train class counts {0: 186, 1: 85, 2: 89}
+D2: train (1689, 21), test (423, 21), train class counts {0: 1316, 1: 234, 2: 139}
+
+====================================================================================================
+# 3.2 Skewness: find the skewed features on the TRAINING rows, correct them with Yeo-Johnson, recalculate the statistics
+====================================================================================================
+Features corrected with Yeo-Johnson (skewed and with enough distinct values):
+   D1: ['Age', 'BS']
+   D2: ['AC', 'FM', 'UC', 'DL', 'MSTV', 'ALTV', 'MLTV', 'Nmax', 'Mode', 'Variance']
+D1: 0 of 2160 values (0.00%) capped at +/-4 SD; most capped features: {}
+D2: 42 of 35469 values (0.12%) capped at +/-4 SD; most capped features: {'DP': 18, 'DS': 6, 'Max': 5, 'Nzeros': 5}
+
+D1 statistics BEFORE the correction (training rows, original units)
+               mean  median    std   min    max    IQR  skew  kurtosis
+Age           29.22    25.0  13.71  10.0   70.0  16.00  0.95      0.02
+SystolicBP   110.68   120.0  17.94  70.0  160.0  30.00 -0.25     -0.77
+DiastolicBP   75.46    80.0  13.92  49.0  100.0  24.25 -0.08     -0.94
+BS             8.39     7.5   2.91   6.0   19.0   1.00  2.19      3.69
+BodyTemp      98.68    98.0   1.39  98.0  103.0   0.00  1.76      1.53
+HeartRate     74.39    76.0   7.50  60.0   90.0  10.00  0.04     -0.48
+
+D1 statistics AFTER the correction (z-scores of the data the models receive, so mean = 0 and std = 1 by construction)
+             mean  median  std   min   max   IQR  skew  kurtosis
+Age          -0.0   -0.07  1.0 -2.35  2.02  1.38  0.03     -0.75
+SystolicBP    0.0    0.52  1.0 -2.27  2.75  1.67 -0.25     -0.77
+DiastolicBP   0.0    0.33  1.0 -1.90  1.77  1.74 -0.08     -0.94
+BS            0.0    0.04  1.0 -2.18  1.99  0.98  0.30      0.02
+BodyTemp      0.0   -0.49  1.0 -0.49  3.12  0.00  1.76      1.53
+HeartRate     0.0    0.22  1.0 -1.92  2.09  1.34  0.04     -0.48
+D1: still skewed after the correction: ['BodyTemp']  (spikes of repeated values that a transformation cannot spread out)
+
+D2 statistics BEFORE the correction (training rows, original units)
+            mean  median    std    min    max   IQR   skew  kurtosis
+LB        133.18   133.0   9.85  106.0  160.0  14.0  -0.00     -0.33
+AC          2.73     1.0   3.57    0.0   26.0   4.0   1.67      3.27
+FM          7.63     0.0  39.18    0.0  564.0   2.0   9.29    100.24
+UC          3.66     3.0   2.87    0.0   23.0   4.0   0.90      1.58
+DL          1.53     0.0   2.43    0.0   14.0   2.0   1.79      2.84
+DS          0.00     0.0   0.06    0.0    1.0   0.0  16.69    276.50
+DP          0.13     0.0   0.47    0.0    4.0   0.0   4.22     19.09
+ASTV       46.79    48.0  17.31   12.0   87.0  29.0   0.02     -1.07
+MSTV        1.33     1.2   0.88    0.2    7.0   1.0   1.65      4.56
+ALTV        9.94     0.0  18.27    0.0   91.0  12.0   2.15      4.07
+MLTV        8.19     7.4   5.59    0.0   41.8   6.2   1.21      3.02
+Width      69.61    66.0  38.56    3.0  180.0  63.0   0.33     -0.89
+Min        94.06    95.0  29.35   50.0  159.0  53.0   0.09     -1.29
+Max       163.67   162.0  17.55  122.0  238.0  22.0   0.53      0.53
+Nmax        4.04     4.0   2.92    0.0   18.0   4.0   0.89      0.50
+Nzeros      0.32     0.0   0.71    0.0   10.0   0.0   4.25     35.61
+Mode      137.33   139.0  16.33   60.0  187.0  19.0  -0.95      2.85
+Mean      134.53   136.0  15.56   73.0  182.0  20.0  -0.64      0.94
+Median    137.94   139.0  14.48   77.0  186.0  19.0  -0.46      0.65
+Variance   18.50     7.0  28.44    0.0  269.0  22.0   3.19     14.61
+Tendency    0.31     0.0   0.61   -1.0    1.0   1.0  -0.30     -0.65
+
+D2 statistics AFTER the correction (z-scores of the data the models receive, so mean = 0 and std = 1 by construction)
+          mean  median   std   min   max   IQR   skew  kurtosis
+LB       -0.00   -0.02  1.00 -2.76  2.72  1.42  -0.00     -0.33
+AC       -0.00   -0.11  1.00 -1.06  2.04  1.93   0.16     -1.57
+FM        0.00   -0.76  1.00 -0.76  1.88  1.72   0.70     -1.27
+UC        0.00   -0.03  1.00 -1.63  3.74  1.55  -0.07     -0.66
+DL       -0.00   -0.82  1.00 -0.82  1.71  1.84   0.50     -1.57
+DS       -0.05   -0.06  0.24 -0.06  4.00  0.00  16.69    276.50
+DP       -0.02   -0.27  0.87 -0.27  4.00  0.00   3.60     12.30
+ASTV      0.00    0.07  1.00 -2.01  2.32  1.68   0.02     -1.07
+MSTV     -0.00    0.09  1.00 -2.03  2.92  1.41   0.03     -0.54
+ALTV     -0.00   -0.81  1.00 -0.81  1.61  1.99   0.52     -1.59
+MLTV      0.00    0.02  1.00 -2.03  3.85  1.14  -0.01      0.30
+Width    -0.00   -0.09  1.00 -1.73  2.86  1.63   0.33     -0.89
+Min       0.00    0.03  1.00 -1.50  2.21  1.81   0.09     -1.29
+Max      -0.00   -0.10  1.00 -2.37  4.00  1.25   0.50      0.37
+Nmax     -0.00    0.20  1.00 -2.04  2.89  1.41  -0.03     -0.62
+Nzeros   -0.02   -0.45  0.88 -0.45  4.00  0.00   2.16      4.46
+Mode     -0.00    0.01  1.00 -3.13  4.00  1.26   0.08      1.03
+Mean      0.00    0.09  1.00 -3.95  3.05  1.29  -0.64      0.94
+Median    0.00    0.07  1.00 -4.00  3.32  1.31  -0.45      0.61
+Variance  0.00   -0.02  1.00 -1.72  2.43  1.63   0.02     -0.91
+Tendency  0.00   -0.51  1.00 -2.14  1.13  1.64  -0.30     -0.65
+D2: still skewed after the correction: ['DS', 'DP', 'Nzeros']  (spikes of repeated values that a transformation cannot spread out)
+
+====================================================================================================
+# 4.1 Class distributions of the three targets (training portions)
+====================================================================================================
+D1: largest class is 2.2 times the smallest
+D2: largest class is 9.5 times the smallest
+D3: largest class is 7.4 times the smallest
+
+====================================================================================================
+# 4.3 Correlation matrices on the pre-processed training data, and the highly correlated CTG feature pairs
+====================================================================================================
+D2 training feature pairs with |r| > 0.9:
+Mean   Median    0.95
+Mode   Median    0.94
+Width  Min       0.90
+
+====================================================================================================
+# 4.5 Locate the ultrasound images and show one example per plane (from the official training split)
+====================================================================================================
+Image folder: /content/drive/MyDrive/Images/
+
+====================================================================================================
+# 4.6 Feature relevance on the pre-processed TRAINING sets (three different scores, each scaled so the best feature = 1)
+====================================================================================================
+D1 feature ranking (training set, balanced RF)
+             ANOVA_F  MutualInfo  RF_importance  mean_rank
+BS             1.000       0.833          1.000      1.333
+SystolicBP     0.293       1.000          0.531      2.000
+Age            0.130       0.336          0.552      3.667
+DiastolicBP    0.186       0.175          0.365      3.667
+HeartRate      0.149       0.133          0.349      5.000
+BodyTemp       0.162       0.102          0.223      5.333
+
+D2 top-10 feature ranking (training set, balanced RF)
+          ANOVA_F  MutualInfo  RF_importance  mean_rank
+ASTV        0.613       1.000          1.000      1.333
+ALTV        0.532       0.935          0.901      2.667
+Mean        0.499       0.841          0.797      4.000
+MSTV        0.433       0.977          0.494      4.667
+Median      0.402       0.701          0.601      5.667
+AC          0.525       0.684          0.598      5.667
+DP          1.000       0.437          0.337      7.333
+Mode        0.318       0.674          0.419      8.333
+Variance    0.228       0.715          0.282      8.333
+MLTV        0.188       0.421          0.479     10.333
+
+====================================================================================================
+# 5.3 Run the clustering study on the pre-processed TRAINING sets (test rows are never touched)
+====================================================================================================
+D1: best k by silhouette = 3, best k by GMM BIC = 5 (the clinical labels have 3 classes)
+D2: best k by silhouette = 2, best k by GMM BIC = 5 (the clinical labels have 3 classes)
+
+====================================================================================================
+# 6.2 Baseline models: generative and discriminative, all with class-imbalance handling inside the pipeline
+====================================================================================================
+
+D1 baseline models (sorted by CV macro-F1)
+               Model     Family  CV macro-F1  CV sd  Test acc  Test macro-F1  Critical-class recall  Test AUC (OvR)
+           SVM (RBF)     Kernel        0.609  0.022     0.692          0.618                  0.783           0.764
+       Random Forest   Ensemble        0.600  0.056     0.648          0.557                  0.739           0.786
+   Gradient Boosting   Ensemble        0.591  0.060     0.648          0.561                  0.783           0.772
+Gaussian Naive Bayes Generative        0.575  0.029     0.604          0.577                  0.696           0.761
+         Extra Trees   Ensemble        0.575  0.023     0.659          0.568                  0.783           0.723
+ Logistic Regression     Linear        0.561  0.010     0.637          0.611                  0.783           0.764
+       Decision Tree  Classical        0.555  0.019     0.648          0.621                  0.739           0.728
+k-Nearest Neighbours  Classical        0.534  0.019     0.659          0.590                  0.652           0.726
+GMM Bayes classifier Generative        0.503  0.048     0.670          0.649                  0.739           0.822
+          Perceptron     Linear        0.493  0.057     0.582          0.496                  0.348             NaN
+
+D2 baseline models (sorted by CV macro-F1)
+               Model     Family  CV macro-F1  CV sd  Test acc  Test macro-F1  Critical-class recall  Test AUC (OvR)
+       Random Forest   Ensemble        0.889  0.011     0.953          0.918                  0.914           0.985
+   Gradient Boosting   Ensemble        0.873  0.011     0.946          0.905                  0.971           0.982
+       Decision Tree  Classical        0.862  0.019     0.946          0.908                  0.943           0.925
+         Extra Trees   Ensemble        0.854  0.008     0.920          0.829                  0.771           0.984
+           SVM (RBF)     Kernel        0.817  0.016     0.896          0.821                  0.800           0.974
+k-Nearest Neighbours  Classical        0.795  0.021     0.898          0.818                  0.800           0.943
+GMM Bayes classifier Generative        0.763  0.006     0.882          0.788                  0.800           0.938
+ Logistic Regression     Linear        0.760  0.028     0.875          0.795                  0.800           0.956
+          Perceptron     Linear        0.723  0.038     0.842          0.744                  0.714             NaN
+Gaussian Naive Bayes Generative        0.682  0.041     0.773          0.670                  0.629           0.854
+
+====================================================================================================
+# 6.3 Hyper-parameter validation curves: training score against cross-validation score as one parameter changes
+====================================================================================================
+Best values found by cross-validation: {'D1': {'k': 51, 'depth': 5, 'smoothing': 1e-12}, 'D2': {'k': 1, 'depth': 20, 'smoothing': 0.01}}
+
+====================================================================================================
+# 6.4 Grid search for the two ensembles (5-fold CV, scoring = macro-F1)
+====================================================================================================
+D1 Random Forest: best parameters {'model__criterion': 'entropy', 'model__max_depth': 5, 'model__min_samples_split': 5, 'model__n_estimators': 300}, CV macro-F1 = 0.669
+D1 Gradient Boosting: best parameters {'model__learning_rate': 0.05, 'model__max_depth': 2, 'model__n_estimators': 100}, CV macro-F1 = 0.644
+D2 Random Forest: best parameters {'model__criterion': 'entropy', 'model__max_depth': None, 'model__min_samples_split': 5, 'model__n_estimators': 300}, CV macro-F1 = 0.892
+D2 Gradient Boosting: best parameters {'model__learning_rate': 0.1, 'model__max_depth': 3, 'model__n_estimators': 200}, CV macro-F1 = 0.881
+
+====================================================================================================
+# 6.5 Single models re-fitted with the best parameter from the validation curves
+====================================================================================================
+D1: re-fitted with k = 51, tree depth = 5, var_smoothing = 1e-12
+D2: re-fitted with k = 1, tree depth = 20, var_smoothing = 0.01
+
+====================================================================================================
+# 6.6 Decision trees limited to depth 3: readable rules for each dataset (raw units, so the thresholds can be read directly)
+====================================================================================================
+
+D1 balanced tree rules:
+|--- BS <= 7.95
+|   |--- SystolicBP <= 132.50
+|   |   |--- BodyTemp <= 99.50
+|   |   |   |--- class: 0
+|   |   |--- BodyTemp >  99.50
+|   |   |   |--- class: 1
+|   |--- SystolicBP >  132.50
+|   |   |--- SystolicBP <= 137.50
+|   |   |   |--- class: 2
+|   |   |--- SystolicBP >  137.50
+|   |   |   |--- class: 2
+|--- BS >  7.95
+|   |--- BS <= 9.50
+|   |   |--- Age <= 18.00
+|   |   |   |--- class: 2
+|   |   |--- Age >  18.00
+|   |   |   |--- class: 1
+|   |--- BS >  9.50
+|   |   |--- Age <= 38.50
+|   |   |   |--- class: 2
+|   |   |--- Age >  38.50
+|   |   |   |--- class: 2
+
+D1 depth-3 tree test macro-F1: 0.544
+
+D2 balanced tree rules:
+|--- Mean <= 108.50
+|   |--- ASTV <= 25.00
+|   |   |--- Width <= 65.00
+|   |   |   |--- class: 0
+|   |   |--- Width >  65.00
+|   |   |   |--- class: 1
+|   |--- ASTV >  25.00
+|   |   |--- Max <= 234.00
+|   |   |   |--- class: 2
+|   |   |--- Max >  234.00
+|   |   |   |--- class: 0
+|--- Mean >  108.50
+|   |--- MSTV <= 0.65
+|   |   |--- ALTV <= 68.50
+|   |   |   |--- class: 1
+|   |   |--- ALTV >  68.50
+|   |   |   |--- class: 2
+|   |--- MSTV >  0.65
+|   |   |--- ALTV <= 7.50
+|   |   |   |--- class: 0
+|   |   |--- ALTV >  7.50
+|   |   |   |--- class: 1
+
+D2 depth-3 tree test macro-F1: 0.762
+
+====================================================================================================
+# 6.8 Class-imbalance experiment on one model (random forest): no handling, class weights, in-fold SMOTE, and both together
+====================================================================================================
+Dataset                         Strategy  CV macro-F1  CV critical recall  Test macro-F1  Test critical recall
+     D1      1. No handling (unweighted)        0.605               0.742          0.557                 0.739
+     D1         2. class_weight balanced        0.602               0.742          0.557                 0.739
+     D1               3. SMOTE (in-fold)        0.594               0.742          0.546                 0.739
+     D1 4. SMOTE + class_weight balanced        0.597               0.742          0.546                 0.739
+     D2      1. No handling (unweighted)        0.883               0.863          0.907                 0.943
+     D2         2. class_weight balanced        0.890               0.892          0.914                 0.914
+     D2               3. SMOTE (in-fold)        0.884               0.914          0.922                 0.971
+     D2 4. SMOTE + class_weight balanced        0.878               0.914          0.913                 0.943
+
+====================================================================================================
+# 6.9 Stacking: tuned random forest + tuned gradient boosting + tuned naive Bayes + SVM, combined by a logistic regression
+====================================================================================================
+Dataset                   Model   Family  CV macro-F1  CV sd  Test acc  Test macro-F1  Critical-class recall  Test AUC (OvR)
+     D1 Stacking (RF+GB+NB+SVM) Ensemble        0.653  0.045     0.703          0.627                  0.783           0.763
+     D2 Stacking (RF+GB+NB+SVM) Ensemble        0.871  0.012     0.939          0.895                  0.971           0.987
+
+====================================================================================================
+# 7.2 MLP hyper-parameter search: 3-fold stratified CV on the training data, balanced class weights
+====================================================================================================
+D1: best MLP configuration {'units': 64, 'dropout': 0.3, 'learning_rate': 0.001} (3-fold CV macro-F1 = 0.589 +/- 0.016)
+D2: best MLP configuration {'units': 128, 'dropout': 0.0, 'learning_rate': 0.001} (3-fold CV macro-F1 = 0.825 +/- 0.022)
+
+====================================================================================================
+# 7.3 Final MLP for each dataset: train on the training split (15% held out for early stopping), evaluate once on the test split
+====================================================================================================
+D1: 90 epochs run (max 200, early stopping patience 15), batch size 32, Adam, {'units': 64, 'dropout': 0.3, 'learning_rate': 0.001}
+D2: 26 epochs run (max 200, early stopping patience 15), batch size 32, Adam, {'units': 128, 'dropout': 0.0, 'learning_rate': 0.001}
+
+====================================================================================================
+# 8.1 Find the ultrasound images, make the patient-level train/validation/test split and the image generators
+====================================================================================================
+=== CNN ultrasound image classification: 6 fetal planes ===
+Image folder found: /content/drive/MyDrive/Images/
+metadata rows: 12400 | rows with an image file: 12400
+images: train 6217, validation 912, test 5271
+Found 6217 validated image filenames belonging to 6 classes.
+Found 912 validated image filenames belonging to 6 classes.
+Found 5271 validated image filenames belonging to 6 classes.
+classes: ['Fetal abdomen', 'Fetal brain', 'Fetal femur', 'Fetal thorax', 'Maternal cervix', 'Other']
+class weights: {'Fetal abdomen': 3.33, 'Fetal brain': 0.74, 'Fetal femur': 2.29, 'Fetal thorax': 1.12, 'Maternal cervix': 1.26, 'Other': 0.45}
+
+====================================================================================================
+# 8.3 Baseline CNN trained from scratch (convolution, batch normalisation, max pooling)
+====================================================================================================
+Epoch 1/12
+195/195 - 202s - 1s/step - accuracy: 0.5953 - loss: 1.0536 - val_accuracy: 0.0461 - val_loss: 2.9706 - learning_rate: 0.0010
+Epoch 2/12
+195/195 - 151s - 775ms/step - accuracy: 0.7085 - loss: 0.7512 - val_accuracy: 0.1206 - val_loss: 3.2611 - learning_rate: 0.0010
+Epoch 3/12
+195/195 - 152s - 779ms/step - accuracy: 0.7526 - loss: 0.6239 - val_accuracy: 0.6239 - val_loss: 1.1846 - learning_rate: 0.0010
+Epoch 4/12
+195/195 - 149s - 766ms/step - accuracy: 0.7792 - loss: 0.5506 - val_accuracy: 0.5833 - val_loss: 1.2202 - learning_rate: 0.0010
+Epoch 5/12
+195/195 - 147s - 753ms/step - accuracy: 0.8007 - loss: 0.5050 - val_accuracy: 0.5329 - val_loss: 2.4386 - learning_rate: 0.0010
+Epoch 6/12
+195/195 - 149s - 764ms/step - accuracy: 0.8252 - loss: 0.4384 - val_accuracy: 0.7226 - val_loss: 0.7715 - learning_rate: 5.0000e-04
+Epoch 7/12
+195/195 - 151s - 775ms/step - accuracy: 0.8433 - loss: 0.3944 - val_accuracy: 0.7785 - val_loss: 0.6528 - learning_rate: 5.0000e-04
+Epoch 8/12
+195/195 - 153s - 786ms/step - accuracy: 0.8498 - loss: 0.3907 - val_accuracy: 0.8070 - val_loss: 0.5530 - learning_rate: 5.0000e-04
+Epoch 9/12
+195/195 - 149s - 765ms/step - accuracy: 0.8557 - loss: 0.3514 - val_accuracy: 0.7314 - val_loss: 1.2222 - learning_rate: 5.0000e-04
+Epoch 10/12
+195/195 - 150s - 770ms/step - accuracy: 0.8683 - loss: 0.3329 - val_accuracy: 0.8399 - val_loss: 0.4887 - learning_rate: 5.0000e-04
+Epoch 11/12
+195/195 - 158s - 813ms/step - accuracy: 0.8761 - loss: 0.3153 - val_accuracy: 0.8465 - val_loss: 0.4495 - learning_rate: 5.0000e-04
+Epoch 12/12
+195/195 - 153s - 785ms/step - accuracy: 0.8705 - loss: 0.3140 - val_accuracy: 0.7939 - val_loss: 0.8318 - learning_rate: 5.0000e-04
+
+====================================================================================================
+# 8.3b Layer-by-layer settings of the CNN from scratch (architecture only, no training needed)
+====================================================================================================
+                   Layer                   Type Filters (kernels) Kernel size Stride Padding Pool size Activation Dropout rate   Output shape  Weights
+             input_layer             InputLayer                                                                                 (224, 224, 3)        0
+               rescaling              Rescaling                                                                                 (224, 224, 3)        0
+                  conv2d                 Conv2D                32      (3, 3) (1, 1)    same                 relu              (224, 224, 32)      896
+     batch_normalization     BatchNormalization                                                                                (224, 224, 32)      128
+           max_pooling2d           MaxPooling2D                               (2, 2)   valid    (2, 2)                         (112, 112, 32)        0
+                conv2d_1                 Conv2D                64      (3, 3) (1, 1)    same                 relu              (112, 112, 64)    18496
+   batch_normalization_1     BatchNormalization                                                                                (112, 112, 64)      256
+         max_pooling2d_1           MaxPooling2D                               (2, 2)   valid    (2, 2)                           (56, 56, 64)        0
+                conv2d_2                 Conv2D               128      (3, 3) (1, 1)    same                 relu               (56, 56, 128)    73856
+   batch_normalization_2     BatchNormalization                                                                                 (56, 56, 128)      512
+         max_pooling2d_2           MaxPooling2D                               (2, 2)   valid    (2, 2)                          (28, 28, 128)        0
+                conv2d_3                 Conv2D               128      (3, 3) (1, 1)    same                 relu               (28, 28, 128)   147584
+   batch_normalization_3     BatchNormalization                                                                                 (28, 28, 128)      512
+         max_pooling2d_3           MaxPooling2D                               (2, 2)   valid    (2, 2)                          (14, 14, 128)        0
+global_average_pooling2d GlobalAveragePooling2D                                                                                        (128,)        0
+                 dropout                Dropout                                                                            0.4         (128,)        0
+                   dense                  Dense                                                           softmax                        (6,)      774
+
+Total weights: 243,014 (trainable 242,310)
+
+====================================================================================================
+# 8.4 Classical models on raw pixels (32 x 32 grayscale, PCA to 50 components), to compare with the CNNs
+====================================================================================================
+Logistic Regression (pixels): validation macro-F1 0.659 | test accuracy 0.607, test macro-F1 0.605
+k-NN (pixels): validation macro-F1 0.724 | test accuracy 0.666, test macro-F1 0.639
+Random Forest (pixels): validation macro-F1 0.648 | test accuracy 0.672, test macro-F1 0.586
+
+====================================================================================================
+# 8.5 EfficientNetB0 transfer learning: small dropout and learning-rate experiment on 25% of the training images
+====================================================================================================
+Found 1554 validated image filenames belonging to 6 classes.
+Downloading data from https://storage.googleapis.com/keras-applications/efficientnetb0_notop.h5
+[1m16705208/16705208[0m [32m━━━━━━━━━━━━━━━━━━━━[0m[37m[0m [1m2s[0m 0us/step
+ dropout    lr  val acc  val AUC
+     0.5 0.001    0.864    0.983
+     0.2 0.001    0.833    0.976
+     0.2 0.000    0.812    0.974
+     0.5 0.000    0.794    0.972
+chosen head configuration: {'dropout': 0.5, 'learning_rate': 0.001}
+
+====================================================================================================
+# 8.6 EfficientNetB0 two-phase training: the new head only, then fine-tuning of the top 30 layers at a much lower learning rate
+====================================================================================================
+Epoch 1/6
+195/195 - 225s - 1s/step - accuracy: 0.7690 - auc: 0.9592 - loss: 0.5960 - val_accuracy: 0.8728 - val_auc: 0.9831 - val_loss: 0.3900 - learning_rate: 0.0010
+Epoch 2/6
+195/195 - 153s - 786ms/step - accuracy: 0.8531 - auc: 0.9813 - loss: 0.3566 - val_accuracy: 0.8860 - val_auc: 0.9867 - val_loss: 0.3350 - learning_rate: 0.0010
+Epoch 3/6
+195/195 - 155s - 792ms/step - accuracy: 0.8636 - auc: 0.9831 - loss: 0.3371 - val_accuracy: 0.8925 - val_auc: 0.9871 - val_loss: 0.3250 - learning_rate: 0.0010
+Epoch 4/6
+195/195 - 150s - 767ms/step - accuracy: 0.8689 - auc: 0.9847 - loss: 0.3142 - val_accuracy: 0.8904 - val_auc: 0.9860 - val_loss: 0.3368 - learning_rate: 0.0010
+Epoch 5/6
+195/195 - 153s - 782ms/step - accuracy: 0.8790 - auc: 0.9866 - loss: 0.2941 - val_accuracy: 0.8914 - val_auc: 0.9855 - val_loss: 0.3499 - learning_rate: 0.0010
+Epoch 6/6
+195/195 - 152s - 779ms/step - accuracy: 0.8946 - auc: 0.9894 - loss: 0.2356 - val_accuracy: 0.8969 - val_auc: 0.9867 - val_loss: 0.3259 - learning_rate: 5.0000e-04
+Epoch 1/10
+195/195 - 211s - 1s/step - accuracy: 0.8927 - auc: 0.9899 - loss: 0.2502 - val_accuracy: 0.8947 - val_auc: 0.9859 - val_loss: 0.3396 - learning_rate: 3.3333e-05
+Epoch 2/10
+195/195 - 151s - 772ms/step - accuracy: 0.9017 - auc: 0.9899 - loss: 0.2219 - val_accuracy: 0.8991 - val_auc: 0.9872 - val_loss: 0.3134 - learning_rate: 3.3333e-05
+Epoch 3/10
+195/195 - 148s - 761ms/step - accuracy: 0.9067 - auc: 0.9911 - loss: 0.2052 - val_accuracy: 0.9035 - val_auc: 0.9871 - val_loss: 0.3217 - learning_rate: 3.3333e-05
+Epoch 4/10
+195/195 - 155s - 795ms/step - accuracy: 0.9167 - auc: 0.9924 - loss: 0.1875 - val_accuracy: 0.8947 - val_auc: 0.9868 - val_loss: 0.3230 - learning_rate: 3.3333e-05
+Epoch 5/10
+195/195 - 151s - 777ms/step - accuracy: 0.9238 - auc: 0.9930 - loss: 0.1669 - val_accuracy: 0.9057 - val_auc: 0.9881 - val_loss: 0.3025 - learning_rate: 1.6667e-05
+Epoch 6/10
+195/195 - 150s - 769ms/step - accuracy: 0.9244 - auc: 0.9933 - loss: 0.1654 - val_accuracy: 0.9035 - val_auc: 0.9892 - val_loss: 0.2980 - learning_rate: 1.6667e-05
+Epoch 7/10
+195/195 - 151s - 776ms/step - accuracy: 0.9270 - auc: 0.9938 - loss: 0.1588 - val_accuracy: 0.9079 - val_auc: 0.9895 - val_loss: 0.2936 - learning_rate: 1.6667e-05
+Epoch 8/10
+195/195 - 156s - 802ms/step - accuracy: 0.9268 - auc: 0.9925 - loss: 0.1686 - val_accuracy: 0.9046 - val_auc: 0.9889 - val_loss: 0.2956 - learning_rate: 1.6667e-05
+Epoch 9/10
+195/195 - 152s - 778ms/step - accuracy: 0.9279 - auc: 0.9938 - loss: 0.1512 - val_accuracy: 0.9101 - val_auc: 0.9881 - val_loss: 0.2957 - learning_rate: 1.6667e-05
+Epoch 10/10
+195/195 - 151s - 774ms/step - accuracy: 0.9345 - auc: 0.9947 - loss: 0.1393 - val_accuracy: 0.9123 - val_auc: 0.9892 - val_loss: 0.2796 - learning_rate: 8.3333e-06
+
+====================================================================================================
+# 8.7 EfficientNetB0: training curves, test accuracy, per-plane report and confusion matrices
+====================================================================================================
+                 precision    recall  f1-score   support
+
+  Fetal abdomen      0.712     0.913     0.800       358
+    Fetal brain      0.984     0.984     0.984      1472
+    Fetal femur      0.677     0.912     0.777       524
+   Fetal thorax      0.852     0.918     0.884       660
+Maternal cervix      0.994     0.998     0.996       645
+          Other      0.923     0.730     0.815      1612
+
+       accuracy                          0.888      5271
+      macro avg      0.857     0.909     0.876      5271
+   weighted avg      0.901     0.888     0.888      5271
+
+====================================================================================================
+# 9.2 Model selection (by cross-validation / validation score, never by test score) and per-class metrics of the selected model
+====================================================================================================
+
+D1: selected model = Random Forest (tuned)  (5-fold CV macro-F1 = 0.669, test macro-F1 = 0.614)
+hand calculation matches scikit-learn: True
+Class  TP  FP  FN  TN  Precision (%)  Recall (%)  Specificity (%)  F1 (%)  FPR (%)  FNR (%)  Support
+  Low  42  13   5  31          76.36       89.36            70.45   82.35    29.55    10.64       47
+  Mid   4   9  17  61          30.77       19.05            87.14   23.53    12.86    80.95       21
+ High  18   5   5  63          78.26       78.26            92.65   78.26     7.35    21.74       23
+Example, positive class "High": recall = TP/(TP+FN) = 18/(18+5) = 78.26%, specificity = TN/(TN+FP) = 63/(63+5) = 92.65%
+
+D2: selected model = Random Forest (tuned)  (5-fold CV macro-F1 = 0.892, test macro-F1 = 0.910)
+hand calculation matches scikit-learn: True
+     Class  TP  FP  FN  TN  Precision (%)  Recall (%)  Specificity (%)  F1 (%)  FPR (%)  FNR (%)  Support
+    Normal 326  15   4  78          95.60       98.79            83.87   97.17    16.13     1.21      330
+   Suspect  44   4  14 361          91.67       75.86            98.90   83.02     1.10    24.14       58
+Pathologic  32   2   3 386          94.12       91.43            99.48   92.75     0.52     8.57       35
+Example, positive class "Pathologic": recall = TP/(TP+FN) = 32/(32+3) = 91.43%, specificity = TN/(TN+FP) = 386/(386+2) = 99.48%
+
+D3: selected model = EfficientNetB0 (2-phase fine-tune)  (validation macro-F1 = 0.886, test macro-F1 = 0.876)
+hand calculation matches scikit-learn: True
+          Class   TP  FP  FN   TN  Precision (%)  Recall (%)  Specificity (%)  F1 (%)  FPR (%)  FNR (%)  Support
+  Fetal abdomen  327 132  31 4781          71.24       91.34            97.31   80.05     2.69     8.66      358
+    Fetal brain 1449  23  23 3776          98.44       98.44            99.39   98.44     0.61     1.56     1472
+    Fetal femur  478 228  46 4519          67.71       91.22            95.20   77.72     4.80     8.78      524
+   Fetal thorax  606 105  54 4506          85.23       91.82            97.72   88.40     2.28     8.18      660
+Maternal cervix  644   4   1 4622          99.38       99.84            99.91   99.61     0.09     0.16      645
+          Other 1177  98 435 3561          92.31       73.01            97.32   81.54     2.68    26.99     1612
+
+====================================================================================================
+# 9.3 Test-set metrics of the six best models per dataset (ranked by the selection score; first row = selected model)
+====================================================================================================
+
+D1: test-set metrics, models ranked by CV macro-F1
+                           CV macro-F1 (%)  Accuracy (%)  Balanced acc. (%)  Macro-F1 (%)  Micro-F1 (%)  Weighted-F1 (%)     MCC  ROC-AUC macro (%)  PR-AUC macro (%)  Log loss  High recall (%)  High specificity (%)  High FPR (%)  High FNR (%)
+Model                                                                                                                                                                                                                                             
+Random Forest (tuned)                66.87         70.33              62.22         61.38         70.33            67.74  0.5054              77.60             68.53    0.6928            78.26                 92.65          7.35         21.74
+Stacking (RF+GB+NB+SVM)              65.32         70.33              63.10         62.71         70.33            68.80  0.5086              76.30             66.24    0.6876            78.26                 92.65          7.35         21.74
+Gradient Boosting (tuned)            64.38         69.23              60.77         60.21         69.23            66.65  0.4850              76.96             66.25    0.7042            73.91                 92.65          7.35         26.09
+Decision Tree (depth=5)              61.93         69.23              60.03         60.05         69.23            67.06  0.4844              77.85             64.23    1.8001            69.57                 94.12          5.88         30.43
+SVM (RBF)                            60.94         69.23              62.39         61.75         69.23            67.76  0.4922              76.42             64.13    0.6991            78.26                 91.18          8.82         21.74
+Random Forest                        59.98         64.84              57.06         55.74         64.84            62.24  0.4132              78.64             67.23    0.7633            73.91                 89.71         10.29         26.09
+
+D2: test-set metrics, models ranked by CV macro-F1
+                           CV macro-F1 (%)  Accuracy (%)  Balanced acc. (%)  Macro-F1 (%)  Micro-F1 (%)  Weighted-F1 (%)     MCC  ROC-AUC macro (%)  PR-AUC macro (%)  Log loss  Pathologic recall (%)  Pathologic specificity (%)  Pathologic FPR (%)  Pathologic FNR (%)
+Model                                                                                                                                                                                                                                                                     
+Random Forest (tuned)                89.17         95.04              88.69         90.98         95.04            94.86  0.8603              98.84             95.94    0.1669                  91.43                       99.48                0.52                8.57
+Random Forest                        88.87         95.27              88.32         91.80         95.27            95.06  0.8668              98.48             95.22    0.1736                  91.43                      100.00                0.00                8.57
+Gradient Boosting (tuned)            88.12         95.04              89.92         90.58         95.04            94.86  0.8618              98.51             95.74    0.1466                  97.14                       98.97                1.03                2.86
+Gradient Boosting                    87.34         94.56              90.19         90.48         94.56            94.45  0.8494              98.22             95.11    0.1637                  97.14                       99.23                0.77                2.86
+Stacking (RF+GB+NB+SVM)              87.12         93.85              91.79         89.51         93.85            93.95  0.8386              98.70             95.43    0.1902                  97.14                       98.71                1.29                2.86
+Decision Tree (depth=20)             86.15         94.56              90.29         90.84         94.56            94.51  0.8496              92.50             84.81    1.9598                  94.29                       99.48                0.52                5.71
+
+D3: test-set metrics, models ranked by Validation macro-F1
+                                    Validation macro-F1 (%)  Accuracy (%)  Balanced acc. (%)  Macro-F1 (%)  Micro-F1 (%)  Weighted-F1 (%)     MCC  ROC-AUC macro (%)  PR-AUC macro (%)  Log loss
+Model                                                                                                                                                                                           
+EfficientNetB0 (2-phase fine-tune)                    88.56         88.81              90.95         87.63         88.81            88.85  0.8627              98.92             94.12    0.3187
+Small CNN (from scratch)                              78.54         82.43              77.21         78.01         82.43            82.01  0.7765              97.17             86.46    0.4853
+k-NN (pixels)                                         72.41         66.63              65.99         63.90         66.63            67.01  0.5854              87.43             62.44    4.5150
+Logistic Regression (pixels)                          65.91         60.65              66.55         60.48         60.65            60.91  0.5364              89.47             64.46    1.1113
+Random Forest (pixels)                                64.79         67.24              56.18         58.60         67.24            65.14  0.5745              90.55             70.22    1.0384
+
+====================================================================================================
+# 9.6 Error analysis of the selected model per dataset: most common confusions and what the missed critical cases look like
+====================================================================================================
+
+D1 (Random Forest (tuned)): 27 errors out of 91 test samples
+  most common confusions: actual Mid -> predicted Low: 12
+  most common confusions: actual Mid -> predicted High: 5
+  most common confusions: actual Low -> predicted Mid: 5
+  critical class "High": 5 missed, 18 found; mean of the top-3 features:
+            missed critical cases  correctly found critical cases
+BS                           7.34                           11.71
+SystolicBP                  96.00                          122.94
+Age                         17.00                           37.50
+
+D2 (Random Forest (tuned)): 21 errors out of 423 test samples
+  most common confusions: actual Suspect -> predicted Normal: 13
+  most common confusions: actual Normal -> predicted Suspect: 3
+  most common confusions: actual Pathologic -> predicted Normal: 2
+  critical class "Pathologic": 3 missed, 32 found; mean of the top-3 features:
+      missed critical cases  correctly found critical cases
+ASTV                  56.00                           65.97
+ALTV                   1.33                           25.09
+Mean                 127.00                          111.09
+
+D3 (EfficientNetB0 (2-phase fine-tune)): 590 errors out of 5271 test samples
+  most common confusions: actual Other -> predicted Fetal femur: 225
+  most common confusions: actual Other -> predicted Fetal abdomen: 104
+  most common confusions: actual Other -> predicted Fetal thorax: 80
+
+====================================================================================================
+# 9.7 Final comparison of all models
+====================================================================================================
+
+D1: all models ranked by CV macro-F1 (the score used for model selection)
+                             Model     Family  CV macro-F1  Test acc  Test macro-F1  Critical-class recall  Test AUC (OvR)
+             Random Forest (tuned)   Ensemble        0.669     0.703          0.614                  0.783           0.776
+           Stacking (RF+GB+NB+SVM)   Ensemble        0.653     0.703          0.627                  0.783           0.763
+         Gradient Boosting (tuned)   Ensemble        0.644     0.692          0.602                  0.739           0.770
+           Decision Tree (depth=5)  Classical        0.619     0.692          0.600                  0.696           0.778
+                         SVM (RBF)     Kernel        0.609     0.692          0.618                  0.783           0.764
+                     Random Forest   Ensemble        0.600     0.648          0.557                  0.739           0.786
+                        kNN (k=51)  Classical        0.592     0.681          0.633                  0.826           0.807
+                 Gradient Boosting   Ensemble        0.591     0.648          0.561                  0.783           0.772
+MLP (64-32, dropout=0.3, lr=0.001) Neural net        0.589     0.659          0.608                  0.783           0.774
+              Gaussian Naive Bayes Generative        0.575     0.604          0.577                  0.696           0.761
+ Gaussian NB (var_smoothing=1e-12) Generative        0.575     0.604          0.577                  0.696           0.761
+                       Extra Trees   Ensemble        0.575     0.659          0.568                  0.783           0.723
+               Logistic Regression     Linear        0.561     0.637          0.611                  0.783           0.764
+                     Decision Tree  Classical        0.555     0.648          0.621                  0.739           0.728
+              k-Nearest Neighbours  Classical        0.534     0.659          0.590                  0.652           0.726
+              GMM Bayes classifier Generative        0.503     0.670          0.649                  0.739           0.822
+                        Perceptron     Linear        0.493     0.582          0.496                  0.348             NaN
+
+D2: all models ranked by CV macro-F1 (the score used for model selection)
+                              Model     Family  CV macro-F1  Test acc  Test macro-F1  Critical-class recall  Test AUC (OvR)
+              Random Forest (tuned)   Ensemble        0.892     0.950          0.910                  0.914           0.988
+                      Random Forest   Ensemble        0.889     0.953          0.918                  0.914           0.985
+          Gradient Boosting (tuned)   Ensemble        0.881     0.950          0.906                  0.971           0.985
+                  Gradient Boosting   Ensemble        0.873     0.946          0.905                  0.971           0.982
+            Stacking (RF+GB+NB+SVM)   Ensemble        0.871     0.939          0.895                  0.971           0.987
+           Decision Tree (depth=20)  Classical        0.862     0.946          0.908                  0.943           0.925
+                      Decision Tree  Classical        0.862     0.946          0.908                  0.943           0.925
+                        Extra Trees   Ensemble        0.854     0.920          0.829                  0.771           0.984
+MLP (128-64, dropout=0.0, lr=0.001) Neural net        0.825     0.910          0.838                  0.771           0.974
+                          SVM (RBF)     Kernel        0.817     0.896          0.821                  0.800           0.974
+                          kNN (k=1)  Classical        0.814     0.901          0.803                  0.800           0.846
+               k-Nearest Neighbours  Classical        0.795     0.898          0.818                  0.800           0.943
+               GMM Bayes classifier Generative        0.763     0.882          0.788                  0.800           0.938
+                Logistic Regression     Linear        0.760     0.875          0.795                  0.800           0.956
+                         Perceptron     Linear        0.723     0.842          0.744                  0.714             NaN
+   Gaussian NB (var_smoothing=0.01) Generative        0.704     0.811          0.687                  0.629           0.874
+               Gaussian Naive Bayes Generative        0.682     0.773          0.670                  0.629           0.854
+
+D3: all models ranked by Val macro-F1 (the score used for model selection)
+                             Model     Family  Val macro-F1  Test acc  Test macro-F1  Test AUC (OvR)
+EfficientNetB0 (2-phase fine-tune) Neural net         0.886     0.888          0.876           0.989
+          Small CNN (from scratch) Neural net         0.785     0.824          0.780           0.972
+                     k-NN (pixels)  Classical         0.724     0.666          0.639           0.874
+      Logistic Regression (pixels)     Linear         0.659     0.607          0.605           0.895
+            Random Forest (pixels)   Ensemble         0.648     0.672          0.586           0.905
+
+Best model of each family (chosen by CV macro-F1), with its test scores
+   D1
+    Family                              Model  CV macro-F1  CV sd  Test macro-F1  Critical-class recall
+  Ensemble              Random Forest (tuned)        0.669  0.051          0.614                  0.783
+ Classical            Decision Tree (depth=5)        0.619  0.067          0.600                  0.696
+    Kernel                          SVM (RBF)        0.609  0.022          0.618                  0.783
+Neural net MLP (64-32, dropout=0.3, lr=0.001)        0.589  0.016          0.608                  0.783
+Generative               Gaussian Naive Bayes        0.575  0.029          0.577                  0.696
+    Linear                Logistic Regression        0.561  0.010          0.611                  0.783
+   D2
+    Family                               Model  CV macro-F1  CV sd  Test macro-F1  Critical-class recall
+  Ensemble               Random Forest (tuned)        0.892  0.016          0.910                  0.914
+ Classical                       Decision Tree        0.862  0.019          0.908                  0.943
+Neural net MLP (128-64, dropout=0.0, lr=0.001)        0.825  0.022          0.838                  0.771
+    Kernel                           SVM (RBF)        0.817  0.016          0.821                  0.800
+Generative                GMM Bayes classifier        0.763  0.006          0.788                  0.800
+    Linear                 Logistic Regression        0.760  0.028          0.795                  0.800
+
+====================================================================================================
+# 9.8 Evidence for the questions H1-H4: values only, computed from the results above
+====================================================================================================
+H1: strongest predictors of maternal risk (mean rank over three relevance scores, training data)
+   D1 top-3 features: ['BS', 'SystolicBP', 'Age']
+
+H2: do non-linear models beat linear models? (the best model of each group is chosen by CV macro-F1)
+   D1: linear = Logistic Regression (CV 0.561, test 0.611) | non-linear = Random Forest (tuned) (CV 0.669, test 0.614) | non-linear better in CV: True, on test: True
+   D2: linear = Logistic Regression (CV 0.760, test 0.795) | non-linear = Random Forest (tuned) (CV 0.892, test 0.910) | non-linear better in CV: True, on test: True
+
+Generative against discriminative models (the best model of each group is chosen by CV macro-F1)
+   D1: generative = Gaussian Naive Bayes (CV 0.575, test 0.577) | discriminative = Random Forest (tuned) (CV 0.669, test 0.614)
+   D2: generative = GMM Bayes classifier (CV 0.763, test 0.788) | discriminative = Random Forest (tuned) (CV 0.892, test 0.910)
+
+H3: ultrasound plane recall against number of training images
+                 Train images  Recall
+Class                                
+Fetal abdomen             311   0.913
+Fetal femur               453   0.912
+Maternal cervix           825   0.998
+Fetal thorax              922   0.918
+Fetal brain              1397   0.984
+Other                    2309   0.730
+   lowest-recall plane: Other | smallest class: Fetal abdomen
+   Spearman correlation (class size vs recall): -0.09
+
+H4: agreement between clusters and clinical labels (ARI and NMI, 1 = perfect, 0 = chance)
+   D1
+           Algorithm  ARI vs labels  NMI vs labels
+             K-Means          0.045          0.075
+            GMM (EM)          0.041          0.071
+Agglomerative (Ward)          0.045          0.067
+   DBSCAN (eps=1.53)          0.013          0.008
+   D2
+           Algorithm  ARI vs labels  NMI vs labels
+             K-Means          0.039          0.126
+            GMM (EM)          0.088          0.125
+Agglomerative (Ward)          0.187          0.170
+   DBSCAN (eps=2.93)          0.111          0.074
+
+====================================================================================================
+# 10.1 Triage prototype: the models selected by cross-validation for D1 and D2, combined by a simple rule layer
+====================================================================================================
+D1 triage model: Random Forest (tuned)
+D2 triage model: Random Forest (tuned)
+{'maternal_risk': {'Low': 0.031, 'Mid': 0.138, 'High': 0.831}, 'ctg_state': {'Normal': 0.566, 'Suspect': 0.102, 'Pathologic': 0.332}, 'flags': ['High maternal risk', 'Suspect or pathologic CTG'], 'priority': 'URGENT review'}
+
+====================================================================================================
+# 10.2 Interactive Gradio dashboard with three tabs: patient triage, model performance, about and limitations
+====================================================================================================
+Colab notebook detected. To show errors in colab notebook, set debug=True in launch()
+* Running on public URL: (temporary Gradio share link, removed)
+
+This share link is temporary and will last for up to 1 week (best effort). For free permanent hosting and GPU upgrades, run `gradio deploy` from the terminal in the working directory to deploy to Hugging Face Spaces (https://huggingface.co/spaces)

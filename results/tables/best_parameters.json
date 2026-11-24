@@ -1,0 +1,77 @@
+{
+  "D1": {
+    "Random Forest": {
+      "criterion": "entropy",
+      "max_depth": 5,
+      "min_samples_split": 5,
+      "n_estimators": 300,
+      "cv_macro_f1": 0.669
+    },
+    "Gradient Boosting": {
+      "learning_rate": 0.05,
+      "max_depth": 2,
+      "n_estimators": 100,
+      "cv_macro_f1": 0.644
+    },
+    "MLP": {
+      "units": 64,
+      "dropout": 0.3,
+      "learning_rate": 0.001,
+      "cv_macro_f1": 0.589
+    },
+    "kNN": {
+      "n_neighbors": 51
+    },
+    "Decision Tree": {
+      "max_depth": 5
+    },
+    "Gaussian NB": {
+      "var_smoothing": 1e-12
+    }
+  },
+  "D2": {
+    "Random Forest": {
+      "criterion": "entropy",
+      "max_depth": null,
+      "min_samples_split": 5,
+      "n_estimators": 300,
+      "cv_macro_f1": 0.892
+    },
+    "Gradient Boosting": {
+      "learning_rate": 0.1,
+      "max_depth": 3,
+      "n_estimators": 200,
+      "cv_macro_f1": 0.881
+    },
+    "MLP": {
+      "units": 128,
+      "dropout": 0.0,
+      "learning_rate": 0.001,
+      "cv_macro_f1": 0.825
+    },
+    "kNN": {
+      "n_neighbors": 1
+    },
+    "Decision Tree": {
+      "max_depth": 20
+    },
+    "Gaussian NB": {
+      "var_smoothing": 0.01
+    }
+  },
+  "D3": {
+    "EfficientNetB0 head": {
+      "dropout": 0.5,
+      "learning_rate": 0.001,
+      "phase1_epochs": 6,
+      "phase2_epochs": 10,
+      "phase2_learning_rate": 3.3333333333333335e-05,
+      "unfrozen_top_layers": 30
+    },
+    "CNN from scratch": {
+      "epochs": 12,
+      "learning_rate": 0.001,
+      "batch_size": 32
+    }
+  }
+}
